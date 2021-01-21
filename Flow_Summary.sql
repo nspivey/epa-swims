@@ -1,3 +1,6 @@
+/* All flows are in MGD 
+Cole Miller 1/21/2021
+*/
 WITH flows AS
  (
   SELECT CASE WHEN m.reporting_code = '00056' THEN m.value / 1000000 ELSE value END as value
@@ -11,7 +14,7 @@ WITH flows AS
   )
 
 SELECT s.station_code
-, MAX(s.flow) as design_flow
+, MAX(s.flow / 1000000) as design_flow
 , MIN(m.value),
  PERCENTILE_CONT(.1) WITHIN GROUP (ORDER BY m.value ASC), 
  PERCENTILE_CONT(.2) WITHIN GROUP (ORDER BY m.value ASC), 
