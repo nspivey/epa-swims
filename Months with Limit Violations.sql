@@ -1,24 +1,26 @@
-SELECT swims.event.event_sched_start_date,
-SUM(CASE WHEN swims.event.event_type_id = 6535 THEN 1 ELSE 0 END) fiveSum,
-SUM(CASE WHEN swims.event.event_type_id = 6536 THEN 1 ELSE 0 END) sixSum
-    
-FROM swims.event_measurement 
-    
-INNER JOIN swims.event 
-ON swims.event_measurement.event_id = swims.event.event_id 
+SELECT COUNT(DISTINCT CASE WHEN e.event_type_id = 6535 THEN TRUNC(e.event_sched_start_date, 'MM') END) as n_months_w_num_vio
+ , SUM(CASE WHEN e.event_type_id = 6535 THEN 1 ELSE 0 END) as n_num_vios
+ , SUM(CASE WHEN e.event_type_id = 6536 THEN 1 ELSE 0 END) as n_code_vios
+ , SUM(CASE WHEN e.event_type_id = 6537 THEN 1 ELSE 0 END) as n_freq_vios
+ , SUM(CASE WHEN e.event_type_id BETWEEN 570000 AND 570999 THEN 1 ELSE 0 END) as n_comp_sch_past_due
+ 
+FROM swims.event e
+ INNER JOIN swims.event_permit ep ON e.event_id = ep.event_id
+ INNER JOIN swims.permit p ON ep.permit_id = p.permit_id 
 
-INNER JOIN swims.measurement 
-ON swims.event_measurement.sr_id = swims.measurement.sr_id 
-    
-INNER JOIN swims.measurement_header 
-ON swims.measurement.srh_id = swims.measurement_header.srh_id 
-
-WHERE swims.event.event_type_id IN (6537,6536,6535) 
-AND swims.event.expire_flag IS NULL 
-AND swims.event.event_sched_start_date BETWEEN '01-JAN-20' AND '01-JAN-21'
-AND swims.measurement_header.version_no = 0
-AND SUBSTR(swims.measurement_header.ohio_epa_no,1,8) = '3IH00074' 
-group by swims.event.event_sched_start_date;
-
-
-
+WHERE e.expire_flag IS NULL 
+ AND SUBSTR(p.ohio_epa_no,1,8) = '3IH00074' 
+ AND 
+ (
+    (
+     e.event_type_id IN (6535, 6536, 6537) --numeric vios, code vios, freq. vios
+      AND e.event_sched_start_date BETWEEN '01-JAN-20' AND '31-DEC-20' -- BETWEEN is inclusive; original query returned 13 month period
+    )
+  OR
+     (
+     e.event_type_id BETWEEN 570000 AND 570999  --compliance schedule milestones
+       AND e.event_sched_start_date <= SYSDATE
+       AND e.event_end_date IS NULL
+       AND p.permit_status = 'ACTIVE'
+    )
+  );
